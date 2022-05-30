@@ -16,6 +16,7 @@ from databases.model import db,Df
 import sys
 import glob
 import joblib
+import pickle
 
 app = Flask(__name__)
 app.config.from_object(config)
@@ -30,6 +31,23 @@ api = Api(app)
 api.add_resource(ChurnAPI, '/churn')
 
 filepath = ""
+
+
+@app.route('/users', methods=["GET", "POST"])
+def users():
+    data = []
+    if request.method == 'POST':
+        if request.files:
+            uploaded_file = request.files['filename']  # This line uses the same variable and worked fine
+            global filepath
+            filepath = os.path.join(app.config['FILE_UPLOADS'], uploaded_file.filename)
+            uploaded_file.save(filepath)
+            with open(filepath) as file:
+                csv_file = csv.reader(file)
+                for row in csv_file:
+                    data.append(row)
+        return redirect('/predict')
+    return render_template('users.html')
 
 @app.route('/admin', methods=["GET", "POST"])
 def admin():
@@ -49,20 +67,20 @@ def admin():
 
 @app.route('/', methods=["GET", "POST"])
 def index():
-    data = []
-    if request.method == 'POST':
-        if request.files:
-            uploaded_file = request.files['filename'] # This line uses the same variable and worked fine
-            global filepath
-            filepath = os.path.join(app.config['FILE_UPLOADS'], uploaded_file.filename)
-            uploaded_file.save(filepath)
-            with open(filepath) as file:
-                csv_file = csv.reader(file)
-                for row in csv_file:
-                    data.append(row)
-            return redirect('/predict')
-    return render_template('index.html', data=data)
-
+    # data = []
+    # if request.method == 'POST':
+    #     if request.files:
+    #         uploaded_file = request.files['filename'] # This line uses the same variable and worked fine
+    #         global filepath
+    #         filepath = os.path.join(app.config['FILE_UPLOADS'], uploaded_file.filename)
+    #         uploaded_file.save(filepath)
+    #         with open(filepath) as file:
+    #             csv_file = csv.reader(file)
+    #             for row in csv_file:
+    #                 data.append(row)
+    #         return redirect('/predict')
+   # return render_template('index.html', data=data)
+    return render_template('index.html')
 @app.route("/relearn")
 def relearn():
     global filepath
@@ -106,12 +124,39 @@ def relearn():
     model = RandomForestClassifier()
     model.fit(X_train, Y_train)
 
-    filepath = os.path.join(app.config['FILE_MODELS'], 'Churn_normalizer.pkl')
-    joblib.dump(S, filepath )
-    filepath = os.path.join(app.config['FILE_MODELS'], 'Churn_model.pkl')
-    joblib.dump(model, filepath)
+    filepath2 = os.path.join(app.config['FILE_MODELS'], 'Churn_normalizer.pkl')
+    joblib.dump(S, filepath2)
+    filepath2 = os.path.join(app.config['FILE_MODELS'], 'Churn_model.pkl')
+    joblib.dump(model, filepath2)
 
-    return render_template('admin.html')
+
+    return redirect('/accuracy')
+
+
+@app.route("/accuracy")
+def accuracy():
+    S = joblib.load('./models/Churn_normalizer.pkl')
+    model = joblib.load('./models/Churn_model.pkl')
+    global filepath
+    df = pd.read_csv(filepath)
+
+    df = pd.concat([df, pd.get_dummies(df['Gender'])], axis=1)
+    df = pd.concat([df, pd.get_dummies(df['Geography'])], axis=1)
+    Y = df['Exited']
+    X = df.drop(columns=['Exited', 'Geography', 'Gender', 'RowNumber', 'CustomerId', 'Surname'], axis=1)
+    X = df[
+        ['CreditScore', 'Age', 'Tenure', 'Balance', 'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary',
+         'Female', 'Male', 'France', 'Germany', 'Spain']]
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=69420)
+    model.fit(X_train, Y_train)
+    Y_predicted = model.predict(X_test)
+    from sklearn.metrics import precision_score, recall_score, confusion_matrix, classification_report, accuracy_score, f1_score
+    #text1 = 'Accuracy: {:.0%}'.format(accuracy_score(Y_test, Y_predicted)), 'Recall: {:.0%}'.format(recall_score(Y_test, Y_predicted)), 'Precision: {:.0%}'.format(precision_score(Y_test, Y_predicted)), 'F1 score: {:.0%}'.format(f1_score(Y_test, Y_predicted)), 'Confusion matrix:{}'.format(confusion_matrix(Y_test, Y_predicted))
+    text1 = 'Accuracy: {:.0%}'.format(accuracy_score(Y_test, Y_predicted)), 'Recall: {:.0%}'.format(recall_score(Y_test, Y_predicted)), 'Precision: {:.0%}'.format(precision_score(Y_test, Y_predicted)), 'F1 score: {:.0%}'.format(f1_score(Y_test, Y_predicted))
+
+    return render_template("accuracy.html", prediction_text=text1)
+
 
 
 
@@ -196,8 +241,8 @@ class HttpResponseRedirect:
     pass
 
 
-app.config['FILE_UPLOADS'] = "C:\\Python\\Tutorial\\app\\databases"
-app.config['FILE_MODELS'] = "C:\\Python\\Tutorial\\app\\models"
+app.config['FILE_UPLOADS'] = "..\\app\\databases"
+app.config['FILE_MODELS'] = "..\\app\\models"
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -4,24 +4,12 @@
     <meta charset="UTF-8">
     <title>Title</title>
 </head>
-
-
-
 <div style="width:100%;text-align:center">
-    <div class="jumbotron">
+<div class="jumbotron">
         <h1 style='text-align: center'>Churn Web Application</h1>
-    </div>
-    <div>
-        <p class="lead">Téléchargez un fichier csv pour prédire 100 personnes à haut risque</p>
-        <form method="POST" enctype="multipart/form-data" action="/">
-            <input type="file" id="myFile" name="filename" accept=".csv">
-            <input type="submit">
-        </form>
-    </div>
-
-    <div>
-        {{ data }}
-    </div>
+</div>
+<button onclick="window.location.href='/admin'">admin</button>
+<button onclick="window.location.href='/users'">workers</button>
 </div>
 
 <style>
@@ -39,8 +27,16 @@
   text-align:center;
   display:inline;
   line-height:92px;
-  background-image:url(images/background-h1-metal.jpg);
+  background-image:url(../static/01.jpg);
 }
+
+    button{
+        width: 100px;
+        height: 30px;
+        font-size: 20px;
+        border-radius: 4px;
+        color:red;
+    }
 </style>
 
 </html>
